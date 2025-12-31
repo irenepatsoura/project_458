@@ -122,8 +122,11 @@ def generate_dataset():
         if byte_val % 50 == 0: print(f"Progress: {byte_val}/255")
         
         for i in range(SAMPLES_PER_BYTE):
-            # Generate Random Plaintext
-            pt = bytearray(os.urandom(16))
+            # Generate Fixed Plaintext (to reduce noise from other bytes)
+            # We use a "fast" value (e.g. 1) for bytes 1-15 to minimize background latency.
+            # If we used 0, it would trigger the "Very Slow" path for all padding bytes,
+            # drowning out the signal from the first byte.
+            pt = bytearray([1] * 16)
             # FIX the first byte (Controlled Input)
             pt[0] = byte_val
             plaintext = bytes(pt)
