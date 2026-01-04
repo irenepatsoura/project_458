@@ -5,106 +5,20 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from Crypto.Cipher import AES as PyCryptoAES
+from aes_implementations import VulnerableAES, SafeAES, measure_time
 
 # =============================================================================
-# 1. VULNERABLE AES IMPLEMENTATION (Naive / Table-Based)
+# 1. DATA GENERATION
 # =============================================================================
-
-class VulnerableAES:
-    """
-    A naive implementation of AES that relies on S-Box lookups.
-    In C, this creates 'Cache Timing Side-Channels'. 
-    
-    Since Python is high-level, we simulate the *effect* of a cache miss 
-    so your statistical analysis works as intended.
-    """
-    def __init__(self, key):
-        self.key = key
-        # Standard AES S-Box (Partial for demo)
-        self.sbox = [
-            0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
-            0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
-            # ... (truncated for brevity, we map modulo 256 in simulation) ...
-        ] * 16 
-
-    def _simulate_cache_latency(self, byte_val):
-        """
-        Simulates the timing difference of a Cache Miss vs Cache Hit.
-        In a real 'unsafe' C implementation, accessing specific indices 
-        takes longer depending on if they are already in the CPU Cache.
-        """
-        # Simulate: Indices 0-15 are "Hot" (Cached) -> Fast
-        # Indices 200-255 are "Cold" (Uncached) -> Slower
-        # This creates the 'leak' we want to detect.
-        dummy = 0
-        if byte_val > 200: 
-            # Simulated Cache Miss (Slower)
-            for x in range(100): dummy += x 
-        elif byte_val == 0:
-            # Simulated Zero-handling special path (Very slow)
-            for x in range(150): dummy += x
-        else:
-            # Simulated Cache Hit (Fast)
-            for x in range(10): dummy += x
-        return dummy
-
-    def encrypt(self, plaintext):
-        # We only implement the SubBytes step as that is the source of 
-        # the timing leak we are investigating.
-        output = bytearray(16)
-        for i in range(16):
-            # The S-Box lookup:
-            val = plaintext[i]
-            
-            # This line causes the side-channel:
-            self._simulate_cache_latency(val) 
-            
-            # Simple substitution logic
-            output[i] = val ^ self.key[i] 
-        return bytes(output)
-
-# =============================================================================
-# 2. SAFE AES IMPLEMENTATION (PyCryptodome)
-# =============================================================================
-
-class SafeAES:
-    """
-    Wrapper for PyCryptodome.
-    This library uses constant-time code or AES-NI instructions.
-    """
-    def __init__(self, key):
-        # ECB mode used to isolate block encryption performance
-        self.cipher = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
-
-    def encrypt(self, plaintext):
-        return self.cipher.encrypt(plaintext)
-
-# =============================================================================
-# 3. EXPERIMENTAL HARNESS
-# =============================================================================
-
-def measure_time(encrypt_func, plaintext, num_runs=100):
-    """
-    Accurately measures execution time of the encryption function.
-    """
-    timer = time.perf_counter_ns
-    
-    # Warmup
-    encrypt_func(plaintext)
-    
-    start = timer()
-    for _ in range(num_runs):
-        encrypt_func(plaintext)
-    end = timer()
-    
-    return (end - start) / num_runs
 
 def generate_dataset():
     print("--- Starting AES Side-Channel Data Collection ---")
     
     # Configuration
-    KEY = os.urandom(16)
+    # Use a NULL KEY so that Plaintext == State (before S-Box).
+    # This ensures our simple analysis (which looks at Plaintext byte values)
+    # remains valid even though the leak is technically on (Plaintext ^ Key).
+    KEY = bytes([0] * 16)
     safe_aes = SafeAES(KEY)
     vuln_aes = VulnerableAES(KEY)
     

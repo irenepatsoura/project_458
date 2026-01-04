@@ -97,7 +97,7 @@ class CTToyAES:
         - byte_val only used inside arithmetic, not for control flow.
         """
         dummy = 0
-        for x in range(100):
+        for x in range(150):
             dummy += x ^ byte_val
         return dummy
 
@@ -141,7 +141,7 @@ class CTToyAES:
             val = plaintext[i]
 
             # Constant-time dummy work (fixed iterations)
-            # self._simulate_cache_latency_ct(val)
+            self._simulate_cache_latency_ct(val)
 
             # Algebraic S-box (fixed sequence of operations)
             sb = self._algebraic_sbox(val)

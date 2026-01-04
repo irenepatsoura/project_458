@@ -179,6 +179,16 @@ static void leaky_dummy(uint8_t idx) {
     }
 }
 
+// Constant-time dummy to simulate the computational overhead of
+// an algebraic S-Box (which is usually slower than a cached table lookup).
+// We choose 30 iterations so: Hit (10) < Algebraic (30) < Miss (100)
+static void constant_dummy(void) {
+    volatile int dummy = 0;
+    for (int k = 0; k < 30; k++) {
+        dummy += k;
+    }
+}
+
 // ---------------- TOY "ENCRYPT" FUNCTIONS ----------------
 
 // Precomputed S-box (table lookup + Python-style leaky dummy)
@@ -190,7 +200,7 @@ static void encrypt_precomputed(const uint8_t key[BLOCK_SIZE],
         uint8_t idx = (uint8_t)(pt[i] ^ key[i]);
 
         // Secret-dependent extra work, like your Python toy:
-        // leaky_dummy(idx);
+        leaky_dummy(idx);
 
         ct[i] = PRECOMP_SBOX[idx];   // table lookup
     }
@@ -203,6 +213,10 @@ static void encrypt_algebraic(const uint8_t key[BLOCK_SIZE],
 {
     for (int i = 0; i < BLOCK_SIZE; i++) {
         uint8_t idx = (uint8_t)(pt[i] ^ key[i]);
+        
+        // Constant overhead (simulating math complexity)
+        constant_dummy();
+        
         uint8_t sb  = algebraic_sbox(idx);     // same sequence of ops for all idx
         ct[i] = sb;
     }
