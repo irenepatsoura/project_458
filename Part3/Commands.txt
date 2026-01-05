@@ -1,26 +1,8 @@
 WSL 
 
-####### first i have an exmple in ./MyTryPy as before for the leaky(with sbox logic that why not the expected bits (>200)) vs Constant time(just a stable leak(40)) vs PyCrypto ##########################
+######################## in the file ./MyTryC i have an example of Pre-computed S-Box and Algebraic calculated sbox in C #############################
 
-
-~	python3 ./MyTryPy/MyFirstTry.py 
-
-~	python3 ./MyTryPy/Round2.py 
-
-
-###################### than i have an example of BearAES(small , big and ct) in ./MyTryC/BearAES in C ###########################
-
-~	cd ./MyTryC/BearAES
-
-~	gcc -O2 -march=native -Wall ./MyBearTryAES.c -o bearssl_aes_timing_simple -lbearssl
-
-~	./bearssl_aes_timing_simple
-
-~	python3 ./EvalThin.py
-
-~	cd ..
-
-######################## then in the file ./MyTryC i have an example of Pre-computed S-Box and Algebraic calculated sbox in C #############################
+~	cd ./MyTryC/
 
 ~	gcc -O2 -march=native -Wall ./MyTryC/PreVSNot.c -o sbox_timing
 
@@ -28,12 +10,21 @@ WSL
 
 ~	./sbox_timing 
 
-~	python3 ./MyTryPy/EvlaPreVSNot.py
+~	python ./Evaluate_PreSBox_VS_Not.py <--- Αυτο για να δειξουμε το leak σε ενα precomputed με ενα algebric computed sbox.
 
-###################### then i re-evaluate with the pre comp s-box ############################
+~	python ./mitigation_analysis.py
 
+###################### then i have an example of BearAES(small , big and ct) in ./MyTryC/BearAES in C ###########################
 
-~	python3 ./MyTryPy/Round2.py 
+~	cd ./BearAES
 
+~	gcc -O2 -march=native -Wall ./MyBearTryAES.c -o bearssl_aes_timing_simple -lbearssl
 
+~	./bearssl_aes_timing_simple
+
+~	python3 ./EvalBearAES.py <---- Αυτο για να δειξω διαφορά σε χρονους αναλογα το implementation και πως χανεις ταχυτητα με την περισσοτερη ασφαλεια.
+
+~	cd ..
+
+################### i have also in ./BestOutput a good run with small noise at a .csv and the plots of that run ##############################
 
