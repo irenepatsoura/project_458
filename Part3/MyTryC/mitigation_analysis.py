@@ -33,13 +33,13 @@ print(variance)
 plt.figure(figsize=(6, 5))
 plt.title("S-box Variance Results")
 bars = plt.bar(variance.index, variance.values)
-plt.yscale("log")
+#plt.yscale("log")
 for bar in bars:
     yval = bar.get_height()
     plt.text(
         bar.get_x() + bar.get_width() / 2,
         yval,
-        f"{yval:.6e}",
+        f"{yval:.6f}",
         va="bottom",
         ha="center",
         fontsize=8,
@@ -219,4 +219,3 @@ plt.tight_layout()
 plt.savefig("sbox_group_distribution_safe.png", dpi=150)
 print("Plot saved as sbox_group_distribution_safe.png")
 plt.close()
-
