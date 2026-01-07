@@ -114,17 +114,15 @@ static const uint8_t AES_SBOX[256] = {
 
 // ---------------- Algebraic S-box (toy CT) ----------------
 
-static inline uint8_t rotl8(uint8_t x, unsigned n) {
-    return (uint8_t)((x << n) | (x >> (8 - n)));
-}
-
-// Same as your Python _algebraic_sbox (not real AES S-box)
 static inline uint8_t algebraic_sbox(uint8_t x) {
+    // x * 17 is the same as (x << 4) + x
     uint8_t y = (uint8_t)(x * 17u);
-    y ^= rotl8(x, 1);
-    y ^= rotl8(x, 2);
-    y ^= 0x5Au;
-    return y;
+    
+    // Inline 8-bit left rotation by 1
+    // (x << 1) gets high bits, (x >> 7) wraps the MSB to the LSB
+    uint8_t rot = (uint8_t)((x << 1) | (x >> 7));
+    
+    return y ^ rot ^ 0x5Au;
 }
 
 // ---------------- Dummy work (match your Python loops) ----------------
@@ -141,10 +139,10 @@ static void leaky_dummy(uint8_t byte_val) {
     }
 }
 
-static void constant_dummy(uint8_t byte_val) {
+static void constant_dummy(void) {
     // matches your Python CT dummy loop count (=4)
     volatile int dummy = 0;
-    for (int x = 0; x < 4; x++) dummy += (x ^ byte_val);
+    for (int x = 0; x < 4; x++) dummy += x;
 }
 
 // ---------------- AES-like steps: AddRoundKey + SubBytes ----------------
@@ -166,7 +164,7 @@ static void sub_bytes_vulnerable(uint8_t state[BLOCK_SIZE]) {
 static void sub_bytes_algebraic(uint8_t state[BLOCK_SIZE]) {
     for (int i = 0; i < BLOCK_SIZE; i++) {
         uint8_t val = state[i];          // val = (pt ^ key)
-        constant_dummy(val);             // fixed work
+        constant_dummy();             // fixed work
         state[i] = algebraic_sbox(val);  // computed, fixed operations
     }
 }
@@ -229,7 +227,7 @@ int main(void) {
     // pin_to_cpu0(); // enable if you want lower noise
 
     uint8_t key[BLOCK_SIZE] = {
-        0x3C, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00
@@ -257,11 +255,14 @@ int main(void) {
             pt[0] = (uint8_t)byte;
             for (int i = 1; i < BLOCK_SIZE; i++) pt[i] = 0x01;
 
+            double ns_alg = measure_ns(encrypt_algebraic, key, pt, LOOPS_PER_MEASURE);
+            fprintf(fp, "Algebraic_SBox,%d,%.2f,%d\n", byte, ns_alg, s);
+
             double ns_pre = measure_ns(encrypt_precomputed, key, pt, LOOPS_PER_MEASURE);
             fprintf(fp, "Precomputed_SBox,%d,%.2f,%d\n", byte, ns_pre, s);
 
-            double ns_alg = measure_ns(encrypt_algebraic, key, pt, LOOPS_PER_MEASURE);
-            fprintf(fp, "Algebraic_SBox,%d,%.2f,%d\n", byte, ns_alg, s);
+            
+            
         }
     }
 
@@ -269,3 +270,5 @@ int main(void) {
     printf("Done. Results written to sbox_precomputed_vs_algebraic_P3_v2.csv\n");
     return 0;
 }
+
+
