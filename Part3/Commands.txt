@@ -1,5 +1,3 @@
------------>   i have also in ./BestOutput a good run with small noise at a .csv and the plots of that run <-----------------------
-
 WSL 
 
 ######################## in the file ./MyTryC i have an example of Pre-computed S-Box and Algebraic calculated sbox in C #############################
@@ -8,19 +6,22 @@ WSL
 
 ~	gcc -O2 -march=native -Wall ./PreVSNot.c -o sbox_timing
 
-		!! warning because not used a pin func !!
+		!! warning because not used a pin func no problem !!
 
 ~	./sbox_timing 
 
 ~	python ./Evaluate_PreSBox_VS_Not.py <--- Αυτο για να δειξουμε το leak σε ενα precomputed με ενα algebric computed sbox.
 
-~	python ./mitigation_analysis.py
+~	python ./mitigation_analysis.py  <----  Αυτο για να κανουμε evaluate τα αποτελεσματα.
 
 ###################### then i have an example of BearAES(small , big and ct) in ./MyTryC/BearAES in C ###########################
 
 ~	cd ./BearAES
 
-~	gcc -O2 -march=native -Wall ./MyBearTryAES.c -o bearssl_aes_timing_simple -lbearssl
+~	gcc -O2 -march=native -I BearSSL/inc ./MyBearTryAES.c BearSSL/build/libbearssl.a -o bearssl_aes_timing_simple
+
+	!!!!!!!! if you get an error type no bearssl.h found then : cd ./BearSSL and type "make" and run it.  !!!!!!!!!!!!!!
+
 
 ~	./bearssl_aes_timing_simple
 
@@ -28,7 +29,4 @@ WSL
 
 ~	cd ..
 
-
-
-
-
+################### i have also in ./BestOutput a good run with small noise at a .csv and the plots of that run ##############################
