@@ -255,13 +255,11 @@ int main(void) {
             pt[0] = (uint8_t)byte;
             for (int i = 1; i < BLOCK_SIZE; i++) pt[i] = 0x01;
 
-            double ns_alg = measure_ns(encrypt_algebraic, key, pt, LOOPS_PER_MEASURE);
-            fprintf(fp, "Algebraic_SBox,%d,%.2f,%d\n", byte, ns_alg, s);
-
             double ns_pre = measure_ns(encrypt_precomputed, key, pt, LOOPS_PER_MEASURE);
             fprintf(fp, "Precomputed_SBox,%d,%.2f,%d\n", byte, ns_pre, s);
 
-            
+            double ns_alg = measure_ns(encrypt_algebraic, key, pt, LOOPS_PER_MEASURE);
+            fprintf(fp, "Algebraic_SBox,%d,%.2f,%d\n", byte, ns_alg, s);
             
         }
     }
@@ -270,5 +268,6 @@ int main(void) {
     printf("Done. Results written to sbox_precomputed_vs_algebraic_P3_v2.csv\n");
     return 0;
 }
+
 
 
