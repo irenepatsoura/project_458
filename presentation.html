@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES Side-Channel Analysis | Final Report</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --accent-primary: #3b82f6;
+            /* Electric Blue */
+            --accent-secondary: #d946ef;
+            /* Neon Purple */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-glow: rgba(59, 130, 246, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Ambient Background Effect */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 150vw;
+            height: 150vh;
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 60%);
+            z-index: -1;
+            animation: pulseBg 10s infinite alternate;
+        }
+
+        @keyframes pulseBg {
+            0% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        .presentation-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 4rem 6rem;
+            opacity: 0;
+            transform: scale(0.9) translateY(30px);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            backdrop-filter: blur(0px);
+            /* Performance fix */
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: all;
+            z-index: 10;
+        }
+
+        .slide.prev {
+            transform: scale(1.1) translateY(-30px);
+            opacity: 0;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+            letter-spacing: -2px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2.5rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h2::before {
+            content: '';
+            width: 6px;
+            height: 2.5rem;
+            background: var(--accent-secondary);
+            border-radius: 4px;
+            box-shadow: 0 0 15px var(--accent-secondary);
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: var(--accent-primary);
+            margin-bottom: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p,
+        li {
+            font-size: 1.25rem;
+            line-height: 1.7;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        li {
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: var(--accent-secondary);
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Layouts */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            height: 70%;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .image-container {
+            position: relative;
+            display: flex;
+            /* Centering */
+            justify-content: center;
+            align-items: center;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 55vh;
+            width: auto;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+            transition: transform 0.5s;
+
+            /* Styles moved from container to image */
+            border-radius: 16px;
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+
+        img:hover {
+            transform: scale(1.02);
+        }
+
+        .caption {
+            text-align: center;
+            margin-top: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 3rem;
+            right: 4rem;
+            display: flex;
+            gap: 1.5rem;
+            z-index: 50;
+        }
+
+        .btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn-nav:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .progress-bar-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            width: 0%;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 20px var(--accent-primary);
+        }
+
+        .slide-number {
+            position: absolute;
+            top: 2rem;
+            right: 3rem;
+            font-family: 'Fira Code', monospace;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="presentation-container">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress"></div>
+        </div>
+        <div class="slide-number" id="slideCounter">01 / 14</div>
+
+        <!-- SLIDE 1: Title -->
+        <div class="slide active">
+            <div>
+                <h3 style="color: var(--accent-secondary);">CS458 Final Project</h3>
+                <h1>AES Side-Channel<br>Analysis & Mitigation</h1>
+                <p style="font-size: 1.5rem; margin-top: 2rem; max-width: 800px;">
+                    Demonstrating how <span style="color: var(--accent-primary)">Time</span> reveals <span
+                        style="color: var(--accent-secondary)">Secrets</span>, and how to fix it with Constant-Time
+                    Algorithms.
+                </p>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: Problem Statement -->
+        <div class="slide">
+            <h2>The Core Problem</h2>
+            <div class="grid-layout">
+                <div class="card">
+                    <h3>Side-Channel Leakage</h3>
+                    <p>Cryptographic algorithms like AES are mathematically secure. However, their <strong>physical
+                            implementation</strong> (in code and silicon) can leak information.</p>
+                    <p>The most dangerous leak in software AES is the <strong>Timing Channel</strong> caused by <span
+                            style="color: var(--accent-secondary)">CPU Caches</span>.</p>
+                    <div
+                        style="margin-top: 2rem; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: 'Fira Code', monospace; border-left: 4px solid var(--accent-secondary);">
+                        Access Time(RAM) >> Access Time(L1 Cache)
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Attack Vector</h3>
+                    <ul>
+                        <li>AES uses <strong>S-Boxes</strong> (Lookup Tables) for <strong>Faster Substitution</strong>.
+                        </li>
+                        <li><code>Value = SBOX[Key ^ Input]</code></li>
+                        <li>The memory address depends on the Key.</li>
+                        <li>If an attacker can measure <strong>Time</strong>, they can infer the memory address, and
+                            thus the Key.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: Project Overview -->
+        <div class="slide">
+            <h2>Project Workflow</h2>
+            <div class="grid-layout">
+                <div class="card">
+                    <h3>Objective</h3>
+                    <p>To implement a "Vulnerable" AES from scratch, demonstrate that it leaks key information via
+                        statistical analysis, and then implement a "Safe" version using the <strong>Algebraic
+                            S-Box</strong> technique.</p>
+                </div>
+                <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div
+                            style="background: var(--accent-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                            1</div>
+                        <p style="margin: 0;"><strong>Simulate</strong>: Build Vulnerable AES with cache-miss logic.</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div
+                            style="background: var(--accent-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                            2</div>
+                        <p style="margin: 0;"><strong>Measure</strong>: Collect 50,000+ timing samples.</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div
+                            style="background: var(--accent-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                            3</div>
+                        <p style="margin: 0;"><strong>Analyze</strong>: Use Welch’s T-Test and KDE to prove leakage.</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div
+                            style="background: var(--accent-secondary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                            4</div>
+                        <p style="margin: 0;"><strong>Fix</strong>: Replace Lookup Table with Math.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: Intro / Setup -->
+        <div class="slide">
+            <h2>Experimental Setup</h2>
+            <div class="grid-layout">
+                <div class="card">
+                    <h3>Data Collection Parameters</h3>
+                    <ul>
+                        <li><strong>Key</strong>: Fixed Null Key (<code>0x00...</code>).</li>
+                        <li><strong>Input</strong>: We vary the 1st byte of the plaintext (0-255).</li>
+                        <li><strong>Sample Size</strong>: 50 measurements required per byte value to statistically
+                            isolating the signal from OS noise.</li>
+                        <li><strong>Loop Averaging</strong>: Each measurement averages 500 encryptions to smooth out
+                            context switches.</li>
+                    </ul>
+                </div>
+                <div>
+                    <!-- CSS Diagram Replacement for missing image -->
+                    <div class="image-container"
+                        style="background: rgba(30, 41, 59, 0.5); padding: 2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div
+                                style="background: var(--bg-card); border: 1px solid var(--border-glow); padding: 1rem; border-radius: 8px; text-align: center;">
+                                <div style="color: var(--text-muted); font-size: 0.8rem;">INPUT</div>
+                                <div style="font-family: 'Fira Code'; font-weight: bold; color: var(--accent-primary);">
+                                    Plaintext[0]</div>
+                            </div>
+                            <div style="color: var(--text-muted);">➜</div>
+                            <div
+                                style="background: var(--bg-card); border: 1px solid var(--accent-secondary); padding: 1.5rem; border-radius: 8px; text-align: center; box-shadow: 0 0 15px rgba(217, 70, 239, 0.2);">
+                                <div style="font-weight: bold; color: white;">AES-128</div>
+                                <div style="font-size: 0.8rem; color: var(--accent-secondary);">Encrypt()</div>
+                            </div>
+                            <div style="color: var(--text-muted);">➜</div>
+                            <div
+                                style="background: var(--bg-card); border: 1px solid var(--border-glow); padding: 1rem; border-radius: 8px; text-align: center;">
+                                <div style="color: var(--text-muted); font-size: 0.8rem;">OUTPUT</div>
+                                <div style="font-family: 'Fira Code'; font-weight: bold; color: var(--accent-primary);">
+                                    Ciphertext</div>
+                            </div>
+                        </div>
+
+                        <div style="height: 40px; border-left: 2px dashed var(--text-muted);"></div>
+
+                        <div
+                            style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--accent-primary); padding: 0.5rem 2rem; border-radius: 20px; color: var(--accent-primary); font-family: 'Fira Code'; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>⏱️</span> Measurement: <span style="font-weight: bold;">Time Delta</span>
+                        </div>
+
+                    </div>
+                    <p class="caption">Figure 1: The Measurement Rig Concept</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: AES Analysis (Comparison) -->
+        <div class="slide">
+            <h2>AES Timing Analysis</h2>
+            <div class="grid-layout">
+                <div class="card">
+                    <h3>Visual Comparison</h3>
+                    <p>Comparing the raw execution profiles of the two implementations.</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>Blue (Vulnerable)</strong>: Shows a wide spread of execution times. The bimodal
+                            shape suggests two distinct latency states (Cache Hit/Miss).</li>
+                        <li><strong>Green (Reference)</strong>: A sharp, narrow peak. Indicates consistent,
+                            constant-time performance.</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="image-container">
+                        <img src="images/timing_distribution_safe_vs_vulnerable.png" alt="Timing Comparison">
+                    </div>
+                    <p class="caption">Figure 2: Execution Time Profile</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: The Leak Fingerprint -->
+    <div class="slide">
+        <h2>The Leak Fingerprint</h2>
+        <div class="grid-layout">
+            <div>
+                <div class="image-container">
+                    <img src="images/mean_execution_time_vs_input_byte_value_safe_vs_vulnerable.png"
+                        alt="Mean Time vs Byte">
+                </div>
+                <p class="caption">Figure 3: Mean Time vs Byte Signature</p>
+            </div>
+            <div class="card">
+                <h3>The "Step Function"</h3>
+                <p>This plot is the smoking gun of the vulnerability.</p>
+                <ul>
+                    <li>We explicitly programmed a cache miss penalty for bytes > 200.</li>
+                    <li>The graph shows a perfect step-up at index 200.</li>
+                    <li><strong>Implication</strong>: By observing time, an attacker knows if
+                        <code>Plaintext[0] ^ Key[0]</code> is > 200. This leaks 1 bit of information per query.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: Distributions -->
+    <div class="slide">
+        <h2>Timing Distributions (KDE)</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>Bimodal vs Unimodal</h3>
+                <p>Kernel Density Estimation reveals the probability of execution times.</p>
+                <ul>
+                    <li><strong>Vulnerable (Bimodal)</strong>: The two "humps" represent distinct populations. The
+                        left hump is "Cache Hit", the right hump is "Cache Miss".</li>
+                    <li><strong>Safe (Unimodal)</strong>: A single Gaussian distribution. Variations are only due to
+                        random system noise, not data.</li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-container">
+                    <img src="images/timing_distribution_safe_vs_vulnerable.png" alt="KDE Plot">
+                </div>
+                <p class="caption">Figure 4: Probability Density of Timing</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: Grouped Analysis -->
+    <div class="slide">
+        <h2>Impact of Input Groups</h2>
+        <div class="grid-layout">
+            <div>
+                <div class="image-container">
+                    <img src="images/distribution_of_execution_time_by_byte_value_group_initla.png" alt="Boxplot">
+                </div>
+                <p class="caption">Figure 5: Latency Grouped by Input</p>
+            </div>
+            <div class="card">
+                <h3>Visualizing the Threshold</h3>
+                <p>Grouped boxplots make the distinction undeniable.</p>
+                <ul>
+                    <li><strong>Low Group</strong> (< 200): Tight cluster, fast execution.</li>
+                    <li><strong>High Group</strong> (> 200): Tight cluster, slow execution.</li>
+                    <li>This deterministic behavior allows for <span
+                            style="color: var(--accent-secondary)">Distinguisher Attacks</span>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 9: Variance Analysis -->
+    <div class="slide">
+        <h2>Variance Analysis</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>Why Variance?</h3>
+                <p>In side-channel analysis, Variance is often more telling than Mean.</p>
+                <ul>
+                    <li><strong>High Variance</strong>: Indicates that the algorithm has "branches" or different
+                        paths based on secrets.</li>
+                    <li><strong>Low Variance</strong>: Indicates "Constant-Time" discipline.</li>
+                    <li>The chart shows the Naive implementation has variance orders of magnitude higher than the
+                        Safe one.</li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-container">
+                    <img src="images/vulnerable_vs_safe_variance_results.png" alt="Variance Bar Chart">
+                </div>
+                <p class="caption">Figure 6: Variance Magnitude Comparison</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 10: Mitigation Intro -->
+    <div class="slide">
+        <h2>Mitigation: Algebraic S-Box</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>The Solution</h3>
+                <p>To fix the leak, we must remove the memory lookup <code>SBOX[x]</code>.</p>
+                <h3 style="margin-top:2rem">The Math</h3>
+                <p>The AES S-Box is an affine transformation over <span style="font-family: 'Fira Code'">GF(2^8)</span>.
+                    We can compute this on the fly using
+                    bitwise operations (AND, XOR, ROTATE).</p>
+            </div>
+            <div class="card">
+                <h3>Code Comparison</h3>
+                <pre style="font-family: 'Fira Code'; font-size: 0.9rem; color: #a5b4fc;">
+// BAD (Leaky)
+return SBOX_TABLE[x]; 
+
+// GOOD (Constant Time)
+y = inverse(x);
+return affine_transform(y);
+                </pre>
+                <p style="margin-top: 1rem; font-size: 0.9rem;">The "Good" code executes the exact same sequence of
+                    CPU instructions for ANY input <code>x</code>. No cache interaction.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 11: S-Box Performance -->
+    <div class="slide">
+        <h2>S-Box Verification</h2>
+        <div class="grid-layout">
+            <div>
+                <div class="image-container">
+                    <img src="images/precomputed_sbox_vs_algebraic_mean_execution_time.png" alt="S-Box Mean Time">
+                </div>
+                <p class="caption">Figure 7: Algebraic S-Box Performance</p>
+            </div>
+            <div class="card">
+                <h3>Flattening the Curve</h3>
+                <p>Comparing the new implementation (Green) vs the old one (Red).</p>
+                <ul>
+                    <li>The step function is completely gone.</li>
+                    <li>The Algebraic S-Box line is perfectly horizontal.</li>
+                    <li><strong>Trade-off</strong>: The mitigation incurs a ~29% performance penalty (mean time 17.18ns
+                        &rarr; 22.20ns), but achieves security.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 12: S-Box Distributions -->
+    <div class="slide">
+        <h2>S-Box Distributions</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>Restoring Unimodality</h3>
+                <ul>
+                    <li>The Algebraic S-Box distribution (Green) perfectly overlaps with the constant-time ideal.
+                    </li>
+                    <li>The bimodal peaks vanish.</li>
+                    <li>This confirms that we have successfully closed the side-channel.</li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-container">
+                    <img src="images/s-box_timing_distribution.png" alt="S-Box KDE">
+                </div>
+                <p class="caption">Figure 8: S-Box Distribution Correction</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 13: Final Verification (Mic Drop) -->
+    <div class="slide">
+        <h2>Final Verification</h2>
+        <div class="grid-layout">
+            <div>
+                <div class="image-container">
+                    <img src="images/s-box_variance_results.png" alt="Final Variance">
+                </div>
+                <p class="caption">Figure 9: The "Mic Drop" Chart</p>
+            </div>
+            <div class="card">
+                <h3>Proof of Success</h3>
+                <p>Quantitative improvements from the report:</p>
+                <ul>
+                    <li><strong>Variance</strong>: Reduced from <span style="color: var(--accent-secondary)">72.24
+                            ns²</span> to <span style="color: var(--accent-primary)">15.28 ns²</span>.</li>
+                    <li><strong>Correlation</strong>: Input dependence dropped from 0.0979 to 0.0180.</li>
+                    <li><strong>Step Difference</strong>: The "Jump" at byte 200 shrank from 3.10ns to just 0.57ns.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 14: Library Validation (Part 4.5) -->
+    <div class="slide">
+        <h2>Validation against BearSSL</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>Benchmarking References</h3>
+                <p>We verified our measurements against BearSSL's diverse implementations (Part 4.5):</p>
+                <ul>
+                    <li><strong>AES Big / Small</strong>: Table-based. Optimized for speed (Fastest), but highly leaky
+                        due to large cache footprints.</li>
+                    <li><strong>AES CT</strong>: Constant-Time. Uses bit-slicing or algebraic methods. Slowest (~2x vs
+                        Big), but secure.</li>
+                    <li>Our Algebraic S-Box matches the flat profile of <code>BearSSL-CT</code>.</li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-container">
+                    <img src="images/bearssl_timing_aes_big_vs_aes_small_vs_aes_ct.png" alt="BearSSL Comparison">
+                </div>
+                <p class="caption">Figure 10: Validation against BearSSL</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 15: Conclusion -->
+    <div class="slide">
+        <h2>Conclusion & Future</h2>
+        <div class="grid-layout">
+            <div class="card">
+                <h3>Summary</h3>
+                <ul>
+                    <li>We proved that naive AES implementations are fundamentally broken due to cache latency.</li>
+                    <li>We demonstrated that statistical analysis can extract secret information from timing.</li>
+                    <li>We implemented and verified that <strong>Algebraic S-Boxes</strong> provide a complete
+                        defense.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Real World Impact</h3>
+                <p>This is not theoretical. Attacks like <strong>CacheBleed</strong>, <strong>Spectre</strong>, and
+                    <strong>Meltdown</strong> rely on these exact principles.
+                </p>
+                <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 1rem;">
+                    <p><em>"Constant-Time is not a feature. It is a requirement."</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="controls">
+        <button class="btn-nav" id="prevBtn" onclick="changeSlide(-1)">Previous</button>
+        <button class="btn-nav" id="nextBtn" onclick="changeSlide(1)">Next</button>
+    </div>
+
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const progressBar = document.getElementById('progress');
+        const counter = document.getElementById('slideCounter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active', 'prev');
+                if (index === currentSlide) slide.classList.add('active');
+                else if (index < currentSlide) slide.classList.add('prev');
+            });
+
+            // Compute progress
+            const progress = ((currentSlide + 1) / slides.length) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            // Zero pad counter
+            const current = (currentSlide + 1).toString().padStart(2, '0');
+            const total = slides.length.toString().padStart(2, '0');
+            counter.textContent = `${current} / ${total}`;
+
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === slides.length - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= slides.length) currentSlide = slides.length - 1;
+            updateSlide();
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') changeSlide(1);
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+        });
+
+        updateSlide();
+    </script>
+
+</body>
+
+</html>
