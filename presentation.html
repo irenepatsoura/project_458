@@ -595,7 +595,7 @@ return affine_transform(y);
                     <li>The step function is completely gone.</li>
                     <li>The Algebraic S-Box line is perfectly horizontal.</li>
                     <li><strong>Trade-off</strong>: The mitigation incurs a ~29% performance penalty (mean time 17.18ns
-                        &rarr; 22.20ns), but achieves security.</li>
+                        &rarr; 22.20ns), but achieves security against timing analysis.</li>
                 </ul>
             </div>
         </div>
@@ -679,8 +679,8 @@ return affine_transform(y);
                 <ul>
                     <li>We proved that naive AES implementations are fundamentally broken due to cache latency.</li>
                     <li>We demonstrated that statistical analysis can extract secret information from timing.</li>
-                    <li>We implemented and verified that <strong>Algebraic S-Boxes</strong> provide a complete
-                        defense.</li>
+                    <li>We implemented and verified that <strong>Algebraic S-Boxes</strong> provide a better
+                        defense against timing analysis attacks.</li>
                 </ul>
             </div>
             <div class="card">
