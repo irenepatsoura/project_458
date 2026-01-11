@@ -18,6 +18,15 @@ WSL
 
 ~	cd ./BearAES
 
+~	git clone https://www.bearssl.org/git/BearSSL BearSSL 		#Download BearSSL into ./BearSSL (folder name matches your gcc command)
+
+
+~	cd ./BearSSL
+	
+~	make 								#Build it (this creates BearSSL/build/libbearssl.a)
+
+~	cd ..
+
 ~	gcc -O2 -march=native -I BearSSL/inc ./MyBearTryAES.c BearSSL/build/libbearssl.a -o bearssl_aes_timing_simple
 
 	!!!!!!!! if you get an error type no bearssl.h found then : cd ./BearSSL and type "make" and run it.  !!!!!!!!!!!!!!
